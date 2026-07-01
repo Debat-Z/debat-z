@@ -9,49 +9,39 @@ jobs:
   build-apk:
     runs-on: ubuntu-latest
     steps:
-      - name: Récupérer le code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Installer Java 17
-        uses: actions/setup-java@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
-      - name: Installer Flutter
-        uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@v2
         with:
           channel: stable
 
-      - name: Générer le dossier android/
+      - name: Generer le dossier android
         run: flutter create --org com.debatz --project-name debat_z --platforms=android .
 
-      - name: Réglages Android (package, nom, permission Internet)
+      - name: Reglages Android
         run: |
-          # Identifiant de package définitif
           if [ -f android/app/build.gradle.kts ]; then
             sed -i 's/applicationId = "[^"]*"/applicationId = "com.debatz.app"/' android/app/build.gradle.kts
           else
             sed -i 's/applicationId "[^"]*"/applicationId "com.debatz.app"/' android/app/build.gradle
           fi
-          # Nom affiché sous l'icône
           sed -i 's/android:label="[^"]*"/android:label="DEBAT Z"/' android/app/src/main/AndroidManifest.xml
-          # Permission Internet (indispensable pour afficher le site)
           if ! grep -q 'android.permission.INTERNET' android/app/src/main/AndroidManifest.xml; then
             sed -i 's#<manifest \(.*\)>#<manifest \1>\n    <uses-permission android:name="android.permission.INTERNET"/>#' android/app/src/main/AndroidManifest.xml
           fi
 
-      - name: Dépendances
+      - name: Dependances
         run: flutter pub get
-
-      - name: Icône de l'application
-        run: dart run flutter_launcher_icons
 
       - name: Compiler l'APK
         run: flutter build apk --release
 
-      - name: Publier l'APK
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: DEBAT-Z-apk
           path: build/app/outputs/flutter-apk/app-release.apk
