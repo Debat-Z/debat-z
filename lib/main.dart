@@ -5,10 +5,8 @@ import 'package:url_launcher/url_launcher.dart';
 const Color kBlue = Color(0xFF1F4E79);
 const Color kLight = Color(0xFF2E75B6);
 
-// Page de connexion / inscription du site (WooCommerce « Mon compte »).
 const String kAccountUrl = 'https://debat-z.com/mon-compte/';
 
-// Les 3 onglets « web » pointent vers votre site.
 const List<Map<String, String>> kWebTabs = [
   {'title': 'Site', 'url': 'https://debat-z.com/'},
   {'title': 'Forum', 'url': 'https://debat-z.com/forums/'},
@@ -24,50 +22,102 @@ class DebatZApp extends StatelessWidget {
     return MaterialApp(
       title: 'DEBAT Z',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorSchemeSeed: kBlue,
-        appBarTheme: const AppBarTheme(
-            backgroundColor: kBlue, foregroundColor: Colors.white),
-      ),
-      home: const AuthGate(),
+      theme: ThemeData(useMaterial3: true, colorSchemeSeed: kBlue),
+      home: const AuthLanding(),
     );
   }
 }
 
-/// Petit logo reutilisable (repli sur « Z » si l'image manque).
-class Logo extends StatelessWidget {
-  final double size;
-  const Logo({super.key, this.size = 30});
+class AuthLanding extends StatelessWidget {
+  const AuthLanding({super.key});
+
+  void _openLogin(BuildContext context) {
+    Navigator.push(
+        context, MaterialPageRoute(builder: (_) => const LoginWebView()));
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Image.asset(
-      'assets/logo.png',
-      height: size,
-      fit: BoxFit.contain,
-      errorBuilder: (c, e, s) => Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-            color: Colors.white, borderRadius: BorderRadius.circular(6)),
-        alignment: Alignment.center,
-        child: const Text('Z',
-            style: TextStyle(
-                color: kBlue, fontWeight: FontWeight.bold, fontSize: 18)),
+    return Scaffold(
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [kBlue, kLight],
+          ),
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 28),
+            child: Column(
+              children: [
+                const Spacer(flex: 2),
+                Image.asset('assets/logo.png',
+                    height: 150,
+                    fit: BoxFit.contain,
+                    errorBuilder: (c, e, s) => const SizedBox(height: 150)),
+                const SizedBox(height: 16),
+                const Text('DEBAT Z',
+                    style: TextStyle(
+                        fontSize: 34,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 2,
+                        color: Colors.white)),
+                const SizedBox(height: 6),
+                const Text('Dragon Ball, decortique.',
+                    style: TextStyle(color: Colors.white70, fontSize: 15)),
+                const Spacer(flex: 2),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: kBlue,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: () => _openLogin(context),
+                    child: const Text('Se connecter',
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w600)),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      side: const BorderSide(color: Colors.white, width: 1.5),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: () => _openLogin(context),
+                    child: const Text("S'inscrire",
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w600)),
+                  ),
+                ),
+                const Spacer(),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
 }
 
-/// Ecran de connexion / inscription. Tant que l'utilisateur n'est pas connecte,
-/// il ne peut pas acceder aux onglets.
-class AuthGate extends StatefulWidget {
-  const AuthGate({super.key});
+class LoginWebView extends StatefulWidget {
+  const LoginWebView({super.key});
   @override
-  State<AuthGate> createState() => _AuthGateState();
+  State<LoginWebView> createState() => _LoginWebViewState();
 }
 
-class _AuthGateState extends State<AuthGate> {
+class _LoginWebViewState extends State<LoginWebView> {
   late final WebViewController _c;
   bool _loading = true;
   bool _entered = false;
@@ -79,29 +129,30 @@ class _AuthGateState extends State<AuthGate> {
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(Colors.white)
       ..setNavigationDelegate(NavigationDelegate(
-        onPageStarted: (_) => _set(true),
+        onPageStarted: (_) {
+          if (mounted) setState(() => _loading = true);
+        },
         onPageFinished: (_) async {
-          _set(false);
+          if (mounted) setState(() => _loading = false);
           await _c.runJavaScript(
               "try{var r=document.getElementById('rememberme');if(r){r.checked=true;}}catch(e){}");
-          await _checkLogged();
+          await _check();
         },
-        onWebResourceError: (_) => _set(false),
+        onWebResourceError: (_) {
+          if (mounted) setState(() => _loading = false);
+        },
       ))
       ..loadRequest(Uri.parse(kAccountUrl));
   }
 
-  void _set(bool v) {
-    if (mounted) setState(() => _loading = v);
-  }
-
-  Future<void> _checkLogged() async {
+  Future<void> _check() async {
     if (_entered) return;
     try {
       final res = await _c.runJavaScriptReturningResult(
           "(document.body && document.body.className.indexOf('logged-in')>-1)?'1':'0'");
-      final ok = res.toString().replaceAll('"', '').trim() == '1';
-      if (ok && !_entered && mounted) {
+      if (res.toString().replaceAll('"', '').trim() == '1' &&
+          !_entered &&
+          mounted) {
         _entered = true;
         Navigator.pushReplacement(
             context, MaterialPageRoute(builder: (_) => const HomeShell()));
@@ -113,37 +164,15 @@ class _AuthGateState extends State<AuthGate> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        titleSpacing: 14,
-        title: Row(children: const [
-          Logo(size: 28),
-          SizedBox(width: 8),
-          Text('DEBAT Z',
-              style: TextStyle(fontWeight: FontWeight.w600, letterSpacing: 1)),
-        ]),
-        centerTitle: false,
-      ),
-      body: Column(
-        children: [
-          Container(
-            width: double.infinity,
-            color: const Color(0xFFEAF1F8),
-            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-            child: const Text(
-              'Connectez-vous ou creez un compte pour acceder a l\'application.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: kBlue),
-            ),
-          ),
-          Expanded(
-            child: Stack(children: [
-              WebViewWidget(controller: _c),
-              if (_loading)
-                const LinearProgressIndicator(
-                    color: kBlue, backgroundColor: Color(0xFFDCE6F0)),
-            ]),
-          ),
-        ],
-      ),
+          backgroundColor: kBlue,
+          foregroundColor: Colors.white,
+          title: const Text('Connexion / Inscription')),
+      body: Stack(children: [
+        WebViewWidget(controller: _c),
+        if (_loading)
+          const LinearProgressIndicator(
+              color: kBlue, backgroundColor: Color(0xFFDCE6F0)),
+      ]),
     );
   }
 }
@@ -191,61 +220,36 @@ class _HomeShellState extends State<HomeShell> {
     if (_index != 0) setState(() => _index = 0);
   }
 
-  Future<void> _logout() async {
+  Future<void> logout() async {
     await WebViewCookieManager().clearCookies();
     if (mounted) {
-      Navigator.pushReplacement(
-          context, MaterialPageRoute(builder: (_) => const AuthGate()));
+      Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const AuthLanding()),
+          (r) => false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final isWeb = _index < kWebTabs.length;
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: _handlePop,
       child: Scaffold(
-        appBar: AppBar(
-          titleSpacing: 14,
-          title: Row(children: const [
-            Logo(size: 28),
-            SizedBox(width: 8),
-            Text('DEBAT Z',
-                style:
-                    TextStyle(fontWeight: FontWeight.w600, letterSpacing: 1)),
-          ]),
-          centerTitle: false,
-          actions: [
-            if (isWeb)
-              IconButton(
-                icon: const Icon(Icons.refresh),
-                tooltip: 'Actualiser',
-                onPressed: () => _controllers[_index].reload(),
-              ),
-            PopupMenuButton<String>(
-              onSelected: (v) {
-                if (v == 'logout') _logout();
-              },
-              itemBuilder: (_) => [
-                const PopupMenuItem(
-                    value: 'logout', child: Text('Se deconnecter')),
-              ],
-            ),
-          ],
-        ),
-        body: IndexedStack(
-          index: _index,
-          children: [
-            for (int i = 0; i < kWebTabs.length; i++)
-              Stack(children: [
-                WebViewWidget(controller: _controllers[i]),
-                if (_loading[i])
-                  const LinearProgressIndicator(
-                      color: kBlue, backgroundColor: Color(0xFFDCE6F0)),
-              ]),
-            const LinksTab(),
-          ],
+        body: SafeArea(
+          child: IndexedStack(
+            index: _index,
+            children: [
+              for (int i = 0; i < kWebTabs.length; i++)
+                Stack(children: [
+                  WebViewWidget(controller: _controllers[i]),
+                  if (_loading[i])
+                    const LinearProgressIndicator(
+                        color: kBlue, backgroundColor: Color(0xFFDCE6F0)),
+                ]),
+              LinksTab(onLogout: logout),
+            ],
+          ),
         ),
         bottomNavigationBar: NavigationBar(
           selectedIndex: _index,
@@ -275,7 +279,8 @@ class _HomeShellState extends State<HomeShell> {
 }
 
 class LinksTab extends StatelessWidget {
-  const LinksTab({super.key});
+  final Future<void> Function() onLogout;
+  const LinksTab({super.key, required this.onLogout});
 
   static const List<Map<String, dynamic>> links = [
     {'label': 'Site officiel', 'url': 'https://debat-z.com', 'icon': Icons.public, 'color': kBlue},
@@ -299,7 +304,7 @@ class LinksTab extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 8),
       children: [
         const Padding(
-          padding: EdgeInsets.fromLTRB(16, 12, 16, 8),
+          padding: EdgeInsets.fromLTRB(16, 14, 16, 8),
           child: Text('Retrouvez Debat-Z partout',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         ),
@@ -313,6 +318,14 @@ class LinksTab extends StatelessWidget {
               trailing: const Icon(Icons.open_in_new, size: 18),
               onTap: () => _open(l['url'] as String),
             )),
+        const Divider(height: 30),
+        ListTile(
+          leading: const Icon(Icons.logout, color: Colors.redAccent),
+          title: const Text('Se deconnecter',
+              style: TextStyle(
+                  color: Colors.redAccent, fontWeight: FontWeight.w600)),
+          onTap: onLogout,
+        ),
       ],
     );
   }
