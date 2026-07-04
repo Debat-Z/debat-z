@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 const Color kBlue = Color(0xFF1F4E79);
 const Color kLight = Color(0xFF2E75B6);
@@ -12,6 +14,8 @@ const String kLoginUrl =
 const String kRegisterApi = 'https://debat-z.com/wp-json/debatz/v1/register';
 const String kForgotUrl =
     'https://debat-z.com/wp-login.php?action=lostpassword';
+const String kPushRegisterApi =
+    'https://debat-z.com/wp-json/debatz/v1/push-register';
 
 const List<Map<String, String>> kWebTabs = [
   {'title': 'Site', 'url': 'https://debat-z.com/'},
@@ -19,7 +23,39 @@ const List<Map<String, String>> kWebTabs = [
   {'title': 'Messages', 'url': 'https://debat-z.com/messages/'},
 ];
 
-void main() => runApp(const DebatZApp());
+// Recoit les notifications quand l'app est fermee / en arriere-plan.
+@pragma('vm:entry-point')
+Future<void> _firebaseBgHandler(RemoteMessage message) async {
+  // Les messages de type "notification" sont affiches par le systeme.
+}
+
+Future<void> _setupPush() async {
+  try {
+    await Firebase.initializeApp();
+    FirebaseMessaging.onBackgroundMessage(_firebaseBgHandler);
+    final messaging = FirebaseMessaging.instance;
+    await messaging.requestPermission();
+    final token = await messaging.getToken();
+    if (token != null) _registerToken(token);
+    messaging.onTokenRefresh.listen(_registerToken);
+  } catch (_) {
+    // Firebase indisponible : l'app fonctionne normalement, sans notifications.
+  }
+}
+
+void _registerToken(String token) {
+  try {
+    http.post(Uri.parse(kPushRegisterApi),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'token': token}));
+  } catch (_) {}
+}
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await _setupPush();
+  runApp(const DebatZApp());
+}
 
 class DebatZApp extends StatelessWidget {
   const DebatZApp({super.key});
