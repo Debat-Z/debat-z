@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "892732430622",
+    "project_id": "debat-z",
+    "storage_bucket": "debat-z.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:892732430622:android:381bd289e92c9e6389d10f",
+        "android_client_info": {
+          "package_name": "com.debatz.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBPFEAIoWV_c09oCR9Kr64afjrQsZx8joI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
